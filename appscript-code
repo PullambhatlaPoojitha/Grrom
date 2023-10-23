@@ -1,0 +1,67 @@
+function onEdit(e) {
+  var sh = e.source.getSheetByName("post august");
+  var r = e.range;
+  var col = r.getColumn();
+  if (col === 4) { 
+    var entryValue = e.value;
+    if (entryValue !== "") {
+      var row = r.getRow();
+      sh.getRange(1, 1).setValue("Entry No");
+      sh.getRange(1, 2).setValue("Date");
+      sh.getRange(1, 3).setValue("Time");
+      sh.getRange(1, 4).setValue("Machine Number");
+      sh.getRange(row, 1).setValue("1");
+      sh.getRange(row, 2).setValue(new Date()).setNumberFormat("MM/dd/yyyy");
+      sh.getRange(row, 3).setValue(new Date()).setNumberFormat("HH:mm:ss");
+      sh.getRange(row, 4).setValue(entryValue);
+      var cnt = getCurrentCount(sh);
+      sh.getRange(row + 1, 1).setValue(cnt);
+    }
+  }
+}
+function getCurrentCount(sh) {
+  var data = sh.getRange("A:A").getValues();
+  var count = data.reduce(function(total, row) {
+    return total + (row[0] === 1? 1 : 0);
+  }, 0);
+  return count;
+}
+function updateDashboard() {
+  var app1Sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("post august");
+  var dashboardSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("dashboard");
+  if (!app1Sheet || !dashboardSheet) {
+    Logger.log("Sheet not found.");
+    return;
+  }
+  var app1Data = app1Sheet.getDataRange().getValues();
+  var dashboardData = [["Date", "Count", "Difference"]];
+  var dates = {};
+
+  for (var i = 1; i < app1Data.length; i++) {
+    var currentDate = new Date(app1Data[i][1]);
+    if (!isNaN(currentDate.getTime())) {
+      var formattedDate = Utilities.formatDate(currentDate, Session.getScriptTimeZone(), "MM/dd/yyyy");
+
+      if (!dates[formattedDate]) {
+        dates[formattedDate] = 0;
+      }
+
+      dates[formattedDate] += 1; 
+    }
+  }
+
+  var sortedDates = Object.keys(dates).sort();
+  var previousDate = null;
+  var previousCount = null;
+
+  for (var i = 0; i < sortedDates.length; i++) {
+    var date = sortedDates[i];
+    var count = dates[date];
+    var difference = previousDate ? count - previousCount : 0;
+    dashboardData.push([date, count, difference]);
+    previousDate = date;
+    previousCount = count;
+  }
+  dashboardSheet.clear();
+  dashboardSheet.getRange(1, 1, dashboardData.length, 3).setValues(dashboardData);
+}
